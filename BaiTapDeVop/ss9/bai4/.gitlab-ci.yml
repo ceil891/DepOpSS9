@@ -1,0 +1,83 @@
+# ============================================================
+# Bài tập 4: Full CI/CD Pipeline — Test → Build → Dockerize → Push Hub
+# Tích hợp Docker-in-Docker (DinD) để push image lên Docker Hub
+# ============================================================
+
+stages:
+  - test
+  - build
+  - dockerize
+
+# ─── STAGE 1: Integration Test với PostgreSQL ────────────────
+test_job:
+  stage: test
+  image: gradle:7.6-jdk17
+
+  services:
+    - postgres:14-alpine
+
+  variables:
+    POSTGRES_DB: hrm_db
+    POSTGRES_USER: hrm_user
+    POSTGRES_PASSWORD: hrm_password
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hrm_db
+    SPRING_DATASOURCE_USERNAME: hrm_user
+    SPRING_DATASOURCE_PASSWORD: hrm_password
+
+  script:
+    - ./gradlew test
+
+# ─── STAGE 2: Build .jar và lưu artifact ─────────────────────
+build_job:
+  stage: build
+  image: gradle:7.6-jdk17
+
+  script:
+    - ./gradlew build -x test
+
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 day
+
+# ─── STAGE 3: Build Docker Image & Push lên Docker Hub ───────
+dockerize_job:
+  stage: dockerize
+
+  # Dùng Docker-in-Docker image để có thể chạy lệnh docker bên trong pipeline
+  image: docker:latest
+
+  # Service DinD cần thiết để docker daemon hoạt động trong container
+  services:
+    - docker:dind
+
+  # Biến môi trường cho Docker-in-Docker
+  variables:
+    # Địa chỉ Docker daemon của service dind
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    # Tên image sẽ được đặt theo format: username/repo:tag
+    IMAGE_NAME: $DOCKER_USERNAME/hrm-service:latest
+
+  # Job này chỉ chạy sau khi build_job hoàn thành và tải artifacts về
+  needs:
+    - job: build_job
+      artifacts: true
+
+  script:
+    # Bước 1: Đăng nhập Docker Hub bằng biến bảo mật (KHÔNG hard-code!)
+    # $DOCKER_USERNAME và $DOCKER_PASSWORD được cấu hình trong
+    # GitLab → Settings → CI/CD → Variables
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+    # Bước 2: Build Docker image từ Dockerfile trong repo
+    # File .jar đã được tải về từ artifacts của build_job
+    - docker build -t $IMAGE_NAME .
+
+    # Bước 3: Push image lên Docker Hub repository cá nhân
+    - docker push $IMAGE_NAME
+
+  # Chỉ chạy stage dockerize trên nhánh main/master
+  only:
+    - main
+    - master

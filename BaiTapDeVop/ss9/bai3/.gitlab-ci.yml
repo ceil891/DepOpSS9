@@ -1,0 +1,51 @@
+# ============================================================
+# Bài tập 3: CI Pipeline kết nối PostgreSQL
+# Hệ thống Quản lý Nhân sự - 2 stages: test → build
+# ============================================================
+
+stages:
+  - test
+  - build
+
+# ─── STAGE 1: Chạy Integration Test với PostgreSQL ───────────
+test_job:
+  stage: test
+
+  # Image Gradle tích hợp JDK 17 để chạy lệnh Gradle
+  image: gradle:7.6-jdk17
+
+  # Khai báo services: PostgreSQL sẽ chạy song song như một container riêng
+  # GitLab CI tự động liên kết service này với job thông qua hostname "postgres"
+  services:
+    - postgres:14-alpine
+
+  # Biến môi trường cho PostgreSQL container và ứng dụng Spring Boot
+  variables:
+    POSTGRES_DB: hrm_db
+    POSTGRES_USER: hrm_user
+    POSTGRES_PASSWORD: hrm_password
+    # Spring Boot sẽ dùng hostname "postgres" (tên service) để kết nối DB
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hrm_db
+    SPRING_DATASOURCE_USERNAME: hrm_user
+    SPRING_DATASOURCE_PASSWORD: hrm_password
+
+  script:
+    # Chạy toàn bộ Integration Test bằng Gradle
+    - ./gradlew test
+
+# ─── STAGE 2: Build file .jar (chỉ chạy nếu stage test pass) ─
+build_job:
+  stage: build
+
+  image: gradle:7.6-jdk17
+
+  script:
+    # Build project, bỏ qua test vì đã chạy ở stage trước
+    - ./gradlew build -x test
+
+  # Lưu trữ file .jar sinh ra để có thể download hoặc dùng ở stage sau
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    # File artifact sẽ tự động xóa sau 1 ngày
+    expire_in: 1 day

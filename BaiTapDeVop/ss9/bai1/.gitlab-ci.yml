@@ -1,0 +1,19 @@
+# ============================================================
+# Bài tập 1: .gitlab-ci.yml đã được sửa hoàn chỉnh
+# User Service - Spring Boot + Gradle CI Pipeline
+# ============================================================
+
+# Khai báo danh sách các stage theo đúng cú pháp YAML (mảng với dấu -)
+stages:
+  - build_app
+
+build_job:
+  stage: build_app
+
+  # FIX 1: Bổ sung image Docker chứa môi trường Gradle + JDK 17
+  # Image gradle:7.6-jdk17 có sẵn Java 17 và Gradle 7.6
+  image: gradle:7.6-jdk17
+
+  script:
+    # Chạy Gradle Wrapper để clean và build project, bỏ qua test (-x test)
+    - ./gradlew clean build -x test
