@@ -1,0 +1,64 @@
+# =============================================================================
+# Cấu hình Nginx Path-based Routing: Định tuyến Frontend & Backend API Gateway
+# Vị trí file: /etc/nginx/sites-available/default
+# Kích hoạt: sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+# =============================================================================
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name my-ecommerce.com www.my-ecommerce.com;
+
+    # =========================================================================
+    # 1. ĐỊNH TUYẾN BACKEND API GATEWAY (Bắt đầu bằng đường dẫn /api/)
+    # =========================================================================
+    location /api/ {
+        # Chuyển tiếp toàn bộ request có tiền tố /api/ tới Backend API Gateway (Port 8080)
+        # Lưu ý về cú pháp URL upstream:
+        # - proxy_pass http://127.0.0.1:8080;  -> Giữ nguyên tiền tố /api/ (VD: /api/products -> backend nhận /api/products)
+        # - proxy_pass http://127.0.0.1:8080/; -> Cắt bỏ tiền tố /api/ (VD: /api/products -> backend nhận /products)
+        proxy_pass http://127.0.0.1:8080;
+
+        # Thiết lập các Header bắt buộc để truyền danh tính Client tới Backend
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # BẮT BUỘC: Header X-Forwarded-For ghi nhận danh sách IP gốc của Client
+        # Nếu không có header này, Backend sẽ chỉ nhìn thấy IP của Nginx (127.0.0.1)
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Header ghi nhận giao thức ban đầu (http hoặc https)
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Cấu hình timeouts cho các API xử lý tác vụ nặng
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Khuyên dùng HTTP/1.1 khi proxy
+        proxy_http_version 1.1;
+    }
+
+    # =========================================================================
+    # 2. ĐỊNH TUYẾN FRONTEND (Tất cả các request còn lại: /, /about, /products...)
+    # =========================================================================
+    location / {
+        # Chuyển tiếp các request thông thường tới Frontend React (Port 3000)
+        proxy_pass http://127.0.0.1:3000;
+
+        # Giữ nguyên các Header cần thiết
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Hỗ trợ WebSockets cho React Hot Module Replacement / realtime events
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
