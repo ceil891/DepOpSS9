@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  backend:
+    image: my-spring-boot-app:latest
+    container_name: spring_boot_backend
+    restart: unless-stopped
+    ports:
+      # CHỈ PUBLISH PORT 8080 VÀO MẠNG LOCAL (LOOPBACK INTERFACE 127.0.0.1)
+      # Ngăn chặn Docker tự động mở cổng 8080 ra public internet qua iptables.
+      # Chỉ Nginx (hoặc tiến trình nội bộ trên VPS) mới có thể kết nối tới port này.
+      - "127.0.0.1:8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
