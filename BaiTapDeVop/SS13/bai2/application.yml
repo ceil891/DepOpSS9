@@ -1,0 +1,31 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        # ✅ Chỉ mở các endpoint cần thiết (nguyên tắc Least Privilege)
+        # "prometheus" - để Prometheus scrape metrics
+        # "health"     - để load balancer / k8s kiểm tra sức khỏe app
+        # "info"       - thông tin version, build (không nhạy cảm)
+        include: "prometheus,health,info"
+
+        # ❌ KHÔNG include các endpoint nguy hiểm:
+        # - "shutdown"  → tắt toàn bộ ứng dụng từ xa
+        # - "env"       → lộ biến môi trường (chứa passwords, API keys)
+        # - "heapdump"  → dump toàn bộ heap memory (có thể chứa dữ liệu nhạy cảm)
+        # - "threaddump" → thông tin nội bộ có thể bị khai thác
+        # - "*"         → MỞ TẤT CẢ - TUYỆT ĐỐI KHÔNG dùng trong production
+
+  endpoint:
+    health:
+      # Hiển thị chi tiết health check (tùy môi trường)
+      show-details: when-authorized
+
+    prometheus:
+      # Đảm bảo endpoint prometheus được bật
+      enabled: true
+
+  # Cấu hình metrics
+  metrics:
+    tags:
+      # Gắn tag tên application vào tất cả metrics để dễ filter trong Grafana
+      application: ${spring.application.name}

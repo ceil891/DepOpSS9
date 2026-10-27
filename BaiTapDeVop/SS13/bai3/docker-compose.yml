@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # Node Exporter - Thu thập metrics hệ điều hành của máy Host
+  # ============================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+
+    # ✅ Mount các filesystem đặc biệt của Linux Host vào container
+    # Đây là bí quyết để Node Exporter đọc được thông số THẬT của máy chủ
+    # thay vì thông số ảo (bị giới hạn) của container
+    volumes:
+      # /proc → thông tin processes, CPU, memory của Host OS
+      - /proc:/host/proc:ro
+      # /sys  → thông tin hardware, kernel, network interfaces của Host
+      - /sys:/host/sys:ro
+      # /     → filesystem gốc của Host (để tính disk usage)
+      - /:/rootfs:ro
+
+    # Truyền path đã mount vào CLI argument của Node Exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      # Bỏ qua một số filesystem ảo để tránh nhiễu số liệu
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+    # ⚠️ CẢNH BÁO BẢO MẬT:
+    # Node Exporter mặc định chạy ở port 9100
+    # KHÔNG nên public port này ra Internet nếu không có xác thực
+    # Ở đây chỉ expose nội bộ Docker network, Prometheus sẽ scrape qua internal network
+    ports:
+      - "127.0.0.1:9100:9100"   # Chỉ bind localhost, không public ra 0.0.0.0
+
+    networks:
+      - monitoring
+
+    restart: unless-stopped
+
+  # ============================================================
+  # Prometheus - Thu thập và lưu trữ metrics
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'   # Cho phép reload config qua API
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - node-exporter
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data:

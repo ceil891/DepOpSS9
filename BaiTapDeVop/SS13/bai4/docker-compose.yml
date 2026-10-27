@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # Service 1: E-commerce Backend (Spring Boot)
+  # ============================================================
+  ecommerce-api:
+    image: your-dockerhub-username/ecommerce-api:latest
+    # Hoặc build từ source: build: .
+    container_name: ecommerce-api
+
+    # ✅ Port 8080 KHÔNG cần expose ra ngoài nếu chỉ Prometheus cần scrape
+    # Prometheus trong cùng Docker network có thể dùng service name "ecommerce-api"
+    # Uncomment dòng dưới nếu cần Dev test API từ máy Host:
+    # ports:
+    #   - "8080:8080"
+
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+    networks:
+      - monitoring-net
+    restart: unless-stopped
+
+  # ============================================================
+  # Service 2: Prometheus
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+
+    # ✅ Mở port 9090 để Dev xem Prometheus dashboard
+    ports:
+      - "9090:9090"
+
+    # ✅ Bind Mount: nạp file prometheus.yml từ máy Host vào container
+    # Đây là cách quản lý config linh hoạt - sửa file trên Host mà không cần rebuild image
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Bind mount config file
+      - prometheus_data:/prometheus                       # Named volume cho data persistence
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'  # Giữ data 15 ngày
+      - '--web.enable-lifecycle'             # ✅ Bật API reload config (quan trọng!)
+
+    networks:
+      - monitoring-net
+    restart: unless-stopped
+    depends_on:
+      - ecommerce-api
+
+# ✅ Docker Network mặc định (bridge)
+# Các service trong cùng network có thể gọi nhau bằng SERVICE NAME
+networks:
+  monitoring-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:

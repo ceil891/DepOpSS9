@@ -1,0 +1,14 @@
+dependencies {
+    // Spring Boot core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // ✅ Dependency 1: Spring Boot Actuator
+    // Cung cấp các management endpoints như /actuator/health, /actuator/info, v.v.
+    // Nhưng chỉ có Actuator thôi thì /actuator/prometheus sẽ trả về JSON (không phải text/plain Prometheus format)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // ✅ Dependency 2 (QUAN TRỌNG - hay bị quên): Micrometer Prometheus Registry
+    // Đây là "adapter" giúp Actuator xuất metrics theo định dạng text chuẩn của Prometheus
+    // Nếu thiếu dependency này → endpoint /actuator/prometheus sẽ không tồn tại hoặc trả về JSON
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+}

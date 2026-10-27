@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # ============================================================
+  # Job scrape Node Exporter (metrics hệ điều hành)
+  # ============================================================
+  - job_name: 'node'
+    # Node Exporter dùng /metrics mặc định (không cần metrics_path)
+    static_configs:
+      - targets: ['node-exporter:9100']
+        # Gắn label để dễ filter trong Grafana
+        labels:
+          instance: 'vps-production'
+          env: 'production'
+
+  # ============================================================
+  # Job scrape Spring Boot Backend (nếu cần)
+  # ============================================================
+  - job_name: 'backend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']

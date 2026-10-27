@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'backend'
+    # Prometheus chạy trong Docker Container, nên "localhost" bên trong container
+    # sẽ trỏ vào CHÍNH container Prometheus, KHÔNG phải máy Host.
+    # Phải dùng "host.docker.internal" để trỏ ra máy Host (Windows/macOS)
+    # hoặc IP thật của VPS nếu chạy trên Linux server.
+    metrics_path: '/actuator/prometheus'
+    # Spring Boot Actuator expose metrics tại /actuator/prometheus
+    # (KHÔNG phải /metrics mặc định của Prometheus)
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        # Dùng IP VPS thật nếu deploy trên Linux server, ví dụ:
+        # - targets: ['192.168.1.100:8080']

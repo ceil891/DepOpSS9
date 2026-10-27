@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # ============================================================
+  # Scrape E-commerce Backend
+  # Dùng SERVICE NAME "ecommerce-api" thay vì localhost hay IP
+  # Docker DNS tự động resolve "ecommerce-api" → IP container
+  # ============================================================
+  - job_name: 'ecommerce-api'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ecommerce-api:8080']
+        labels:
+          service: 'ecommerce-backend'
+          env: 'production'
