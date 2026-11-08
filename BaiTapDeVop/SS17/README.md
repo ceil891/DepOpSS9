@@ -4,10 +4,10 @@ Dự án thực hành chuyên sâu về bộ giải pháp quản lý tập trung
 
 ---
 
-## 📋 Cấu trúc thư mục
+## 📋 Cấu trúc thư mục repository
 
 ```text
-SS17/
+DepOpSS17/
 ├── bai1/
 │   ├── docker-compose.yml                      ← Cụm Elasticsearch (port 9200) + Kibana (port 5601)
 │   └── README.md                               ← Phân tích Port 9200 (REST) vs Port 9300 (Transport), fix unreachable
@@ -135,20 +135,20 @@ curl -X GET "http://localhost:9200/_cat/indices?v&s=index"
 
 ## 📤 Hướng dẫn nộp bài lên GitHub
 
-Để đưa toàn bộ mã nguồn bài tập SS17 lên GitHub:
+Để đưa toàn bộ mã nguồn bài tập SS17 lên GitHub repository riêng:
 
 ```bash
-# 1. Kiểm tra trạng thái các tệp đã tạo
+# 1. Kiểm tra trạng thái các tệp
 git status
 
-# 2. Thêm thư mục SS17 vào staging
-git add SS17/
+# 2. Thêm tất cả thay đổi vào staging
+git add .
 
 # 3. Commit các thay đổi với thông điệp chuẩn mực
-git commit -m "feat(ss17): hoan thanh 4 bai tap EFK stack, logstash pipeline, dynamic indexing va async logging"
+git commit -m "docs(ss17): cap nhat link repo va huong dan nop bai"
 
 # 4. Đẩy mã nguồn lên repository chính trên GitHub
-git push origin main
+git push -u origin main
 ```
 
-Sau khi hoàn tất lệnh `git push`, sao chép đường link thư mục `SS17` hoặc link repository của bạn và dán vào form nộp bài trên Portal.
+Sau khi hoàn tất lệnh `git push`, sao chép đường link repository `https://github.com/ceil891/DepOpSS17` và dán vào form nộp bài trên Portal.
