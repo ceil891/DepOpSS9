@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Biến cấu hình môi trường -->
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="storex-backend"/>
+    <property name="LOGSTASH_HOST" value="${LOGSTASH_HOST:-localhost}"/>
+    <property name="LOGSTASH_PORT" value="${LOGSTASH_PORT:-5000}"/>
+
+    <!-- 1. Console Appender phục vụ Debug cục bộ -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 2. Logstash TCP Socket Appender (Gốc) -->
+    <!-- LogstashTcpSocketAppender kế thừa AsyncDisruptorAppender sử dụng LMAX Disruptor RingBuffer -->
+    <appender name="LOGSTASH_TCP" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
+        
+        <!-- Bộ đệm vòng RingBuffer và chiến lược kết nối lại -->
+        <ringBufferSize>32768</ringBufferSize>
+        <reconnectionDelay>5 second</reconnectionDelay>
+        <writeBufferSize>16384</writeBufferSize>
+        
+        <!-- Định dạng JSON gửi đi kèm metadata app_name phục vụ Dynamic Index (Bài 3) -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app_name":"${appName}"}</customFields>
+            <includeCallerData>false</includeCallerData>
+        </encoder>
+    </appender>
+
+    <!-- 3. AsyncAppender của Logback bọc ngoài Appender mạng -->
+    <!-- ĐÂY LÀ GIẢI PHÁP CHỐNG NGHẼN CHO TOÀN BỘ WORKER THREAD CỦA ỨNG DỤNG -->
+    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOGSTASH_TCP" />
+        
+        <!-- Sức chứa của hàng đợi trong RAM (mặc định chỉ là 256, nâng lên 65536 cho tải 10.000 log/s) -->
+        <queueSize>65536</queueSize>
+        
+        <!-- Ngưỡng bắt đầu hủy log level thấp khi hàng đợi đầy 80% (còn trống < 20%) -->
+        <!-- Mặc định 20: Tự động loại bỏ TRACE, DEBUG, INFO để ưu tiên bảo vệ WARN, ERROR -->
+        <discardingThreshold>20</discardingThreshold>
+        
+        <!-- THAM SỐ CỐT LÕI: neverBlock = true -->
+        <!-- Khi hàng đợi đầy, app sẽ drop log thay vì block luồng HTTP nghiệp vụ của Tomcat -->
+        <!-- Ưu tiên hàng đầu là GIỮ HỆ THỐNG BÁN HÀNG SỐNG SÓT trong đợt Sale -->
+        <neverBlock>true</neverBlock>
+        
+        <!-- Thời gian tối đa (ms) chờ xả hàng đợi khi ứng dụng shutdown (Graceful Shutdown) -->
+        <maxFlushTime>5000</maxFlushTime>
+        
+        <!-- Tắt lấy thông tin caller (class, line number) qua Reflection để tiết kiệm CPU -->
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- Root Logger sử dụng Async Appender -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="ASYNC_LOGSTASH" />
+    </root>
+
+</configuration>
